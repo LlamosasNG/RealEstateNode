@@ -1,5 +1,6 @@
 import { check, validationResult } from "express-validator";
 import User from "../models/User.js";
+import { generateId } from "../helpers/tokens.js";
 
 const formularioLogin = (req, res) => {
   res.render("auth/login", {
@@ -16,35 +17,62 @@ const formularioRegistro = (req, res) => {
 const registrar = async (req, res) => {
   await check("name")
     .notEmpty()
-    .withMessage("In name cannot be empty")
+    .withMessage("El nombre es obligatorio")
     .run(req);
-  await check("email").isEmail().withMessage("This is not an email").run(req);
+  await check("email")
+    .isEmail()
+    .withMessage("Esto no parece un email")
+    .run(req);
   await check("password")
     .isLength({ min: 6 })
-    .withMessage("The password must be at least 6 characters long")
+    .withMessage("La contraseña debe contener al menos 6 caracteres")
     .run(req);
   await check("repeat_password")
-  .custom((value, { req }) => {
-    if (value !== req.body.password) {
-      throw new Error("The passwords must match");
-    }
-    return true;
-  })
-  .run(req);
-  
+    .equals("password")
+    .withMessage("La contraseña debe ser la misma")
+    .run(req);
+
   let result = validationResult(req);
+
+  const { name, email, password } = req.body;
 
   if (!result.isEmpty()) {
     return res.render("auth/registro", {
       pagina: "Crear Cuenta",
       errores: result.array(),
+      usuario: {
+        name,
+        email,
+      },
     });
   }
 
-  res.json(result.array());
+  // Verificar usuarios duplicados
+  const userExist = await User.findOne({ where: { email } });
+  if (userExist) {
+    return res.render("auth/registro", {
+      pagina: "Crear Cuenta",
+      errores: [{ msg: "Este usuario ya existe" }],
+      usuario: {
+        name,
+        email,
+      },
+    });
+  }
 
-  const user = await User.create(req.body);
-  res.json(user);
+  // Almacenar usuario
+  await User.create({
+    name,
+    email,
+    password,
+    token: generateId(),
+  });
+
+  // Mostrar mensaje de confirmación
+  res.render("templates/mensaje", {
+    pagina: "Cuenta creada correctamente",
+    mensaje: "Hemos enviado un email de confirmación, da click en el enlace",
+  });
 };
 
 const formularioPasswordRecovery = (req, res) => {
