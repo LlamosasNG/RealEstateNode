@@ -1,5 +1,6 @@
 import { check, validationResult } from "express-validator";
 import User from "../models/User.js";
+import { generateId } from "../helpers/tokens.js";
 
 const formularioLogin = (req, res) => {
   res.render("auth/login", {
@@ -18,7 +19,10 @@ const registrar = async (req, res) => {
     .notEmpty()
     .withMessage("El nombre es obligatorio")
     .run(req);
-  await check("email").isEmail().withMessage("Esto no parece un email").run(req);
+  await check("email")
+    .isEmail()
+    .withMessage("Esto no parece un email")
+    .run(req);
   await check("password")
     .isLength({ min: 6 })
     .withMessage("La contraseña debe contener al menos 6 caracteres")
@@ -56,8 +60,19 @@ const registrar = async (req, res) => {
     });
   }
 
-  const user = await User.create(req.body);
-  res.json(user);
+  // Almacenar usuario
+  await User.create({
+    name,
+    email,
+    password,
+    token: generateId(),
+  });
+
+  // Mostrar mensaje de confirmación
+  res.render("templates/mensaje", {
+    pagina: "Cuenta creada correctamente",
+    mensaje: "Hemos enviado un email de confirmación, da click en el enlace",
+  });
 };
 
 const formularioPasswordRecovery = (req, res) => {
