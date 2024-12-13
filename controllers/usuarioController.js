@@ -23,7 +23,6 @@ const registrar = async (req, res) => {
     .isLength({ min: 6 })
     .withMessage("The password must be at least 6 characters long")
     .run(req);
-    // Comparar repeat_password con el valor de password
   await check("repeat_password")
   .custom((value, { req }) => {
     if (value !== req.body.password) {
